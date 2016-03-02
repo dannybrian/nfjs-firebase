@@ -200,15 +200,31 @@
                 if (!regex.exec(examples[i].string)) {
                     return;
                 }
-                // test captures
-                var captures = regex.exec(examples[i].string);
-                var capturesFeedback;
+                // test captures; if global matching, we need to iterate to make our list.
+                var captures = ["0"]; // empty element 0 for below
+                if (flagsEl.value.match(/g/)) {
+                    regex.lastIndex = 0; // reset the matching
+                    var matches;
+                    while (matches = regex.exec(examples[i].string)) {
+                        captures.push(matches[1]);
+                        console.log("HERE?");
+                    }
+                }
+                else
+                {
+                    regex.lastIndex = 0;
+                    captures = regex.exec(examples[i].string);
+                }
+                
+                console.log(captures);
+                
+                // var capturesFeedback;
                 // captures[0] is the matched text. Will we need that?
                 /* feedbackEl.innerHTML = "Captured groups: " +
                     captures.map(function(s) { return '"<b>' + s + '</b>"'}).join(", ");
                 */
                 if (examples[i].captures) {
-                    for (var m = 1; m < examples[i].captures.length; m++) {
+                    for (var m = 1; m <= examples[i].captures.length; m++) {
                         console.log("Need: " + examples[i].captures[m-1]);
                         console.log("Got: " + captures[m]);
                         if (!captures[m] || captures[m] != examples[i].captures[m-1]) {
