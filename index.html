@@ -1,0 +1,328 @@
+<!doctype html>
+<html>
+    <head>
+        <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.6.0/pure-min.css">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css">
+        <link href='https://fonts.googleapis.com/css?family=Source+Code+Pro:500,700' rel='stylesheet' type='text/css'>
+        <link href='https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700' rel='stylesheet' type='text/css'>
+        
+        <script src="https://cdn.firebase.com/js/client/2.4.1/firebase.js"></script>
+        
+        <style>
+            * {
+                font-family: 'Source Sans Pro', sans-serif;
+            }
+            body {
+                padding: 50px;
+                background-color: #f3f3f3;
+            }
+            button#update {
+                color: white;
+                border-radius: 4px;
+                font-size: 130%;
+                background: rgb(28, 184, 65);
+                margin-right: 10px;
+            }
+            button#reset {
+                color: white;
+                border-radius: 4px;
+                font-size: 130%;
+                background: rgb(202, 60, 60); 
+            }
+            div#desc {
+                background: #fff;
+                border-radius: 4px;
+                border: 1px solid #ccc;
+                padding: 14px;
+                font-size: 120%;
+                line-height: 24px;
+                min-height: 24px;
+            }
+            input[name="regex"], input[name="flags"] {
+                font-family: 'Source Code Pro';
+                font-weight: 500;
+                font-size: 120%;
+            }
+            span#works {
+                margin: 10px;
+                font-size: 150%;
+                color: rgb(202, 60, 60);
+            }
+            span#works.good {
+                color: rgb(28, 184, 65);
+            }
+            div#feedback {
+                
+                font-style: italic;
+                color: #666;
+                margin-top: 20px;
+                min-height: 20px;
+            }
+            .gone {
+                display: none;
+            }
+            td.regex {
+                font-family: 'Source Code Pro';
+                font-weight: 500;
+            }
+            tr:nth-child(2n) {
+                background: #fff;
+            }
+            tr {
+                transition: background-color 1s ease;
+            }
+            tr.updated {
+                background: #e0e7bd;
+                transition: none;
+            }
+        </style>
+    </head>
+    
+    <body>
+        <h1>The Pattern Matching Challenge</h1>
+        
+        <span id="controls" class="gone" style="position: absolute; top: 20px; right: 20px;">
+            <button onclick="prev()" class="pure-button" style="font-size: 140%; margin: 5px;">
+                <i class="fa fa-arrow-left"></i>
+            </button>
+            <button onclick="next()" class="pure-button" style="font-size: 140%; margin: 5px;">
+                <i class="fa fa-arrow-right"></i>
+            </button>
+        </span>
+        
+        <div>
+            <form id="form" class="pure-form">
+                <fieldset>
+                    
+                    <legend>The challenge:</legend>                    
+                    
+                    <div id="desc" style="font-style: italic; font-weight: bold;">Match "abc".</div>
+                    <br/><br/><br/>
+                    
+                    <span id="player" class="gone">
+                        <legend>Enter your name:</legend>
+
+                        <input type="text" name="name" placeholder="Your Name" maxlength="50" style="width: 300px;">
+                        <br/><br/>
+
+                        <legend>Enter your solution:</legend>
+
+                        <b>/</b>&nbsp; <input name="regex" placeholder="Regular Expression" maxlength="300" style="width: 700px;"> &nbsp;<b>/</b> <input name="flags" placeholder="Flags" maxlength="5" style="width: 100px;"> <span id="works"><i class="fa fa-circle"></i></span>
+
+                        <div id="feedback"></div>
+
+                        <br/><br/><br/>
+
+                        <button id="update" onclick="return false;" type="submit" class="button pure-button pure-button-disabled"><i class="fa fa-arrow-circle-up"></i>  Update</button>
+                        <!-- <button id="reset" onclick="return false;" type="submit" class="button pure-button"><i class="fa fa-undo"></i>  Reset</button> -->
+                    </span>
+                    
+                    <span id="admin" class="gone">
+                        <table id="regexes" class="pure-table" style="width: 100%;">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Regex</th>
+                                </tr>
+                            </thead>
+                            <tr id="row_template" class="gone">
+                                <td style="width: 25%;"></td>
+                                <td class="regex"></td>
+                            </tr>
+                        </table>
+                    </span>
+                    
+                </fieldset>
+            </form>
+        </div>        
+    </body>
+    
+    <script>
+        
+        var firebaseRef = new Firebase("https://nfjs.firebaseio.com");
+        var challengeRef = firebaseRef.child('challenge');
+        var regexesRef = firebaseRef.child('regexes');
+        
+        var feedbackEl = document.getElementById('feedback');
+        var flagsEl = document.querySelector('input[name="flags"]');
+        var regexEl = document.querySelector('input[name="regex"]');
+        var worksEl = document.getElementById('works');
+        var updateEl = document.getElementById('update');
+        var examples = new Array;
+        var table = document.getElementById('regexes');
+        var row_template = document.getElementById('row_template');
+        var form = document.getElementById("form");
+
+        var currentCount = 0;
+        
+        // anonymous login only for now; reuse session, or get new one.
+        firebaseRef.onAuth(function(authData) {
+            if (authData) { console.log(authData); }
+            else {
+                firebaseRef.authAnonymously(function(error, authData) {
+                    console.log(authData);
+                });
+            }
+        });
+        
+        // when the update button gets clicked, write the regex to
+        // /regexes
+        document.getElementById('update').addEventListener('click', function() {
+            updateEl.classList.add('pure-button-disabled');
+            var username = document.querySelector('input[name="name"]').value;
+            var regex = document.querySelector('input[name="regex"]').value;
+            regexesRef.child(currentCount).child(firebaseRef.getAuth().uid).set({ name: username, regex: regex }, function() {
+                feedbackEl.textContent = "Your entry was updated.";
+                setTimeout(function() {
+                    feedbackEl.textContent = "";
+                }, 2000);
+            });
+        });
+        
+        // when typing pauses, test the regex ..
+        var testRegex = debounce(function(e) {
+            worksEl.classList.remove('good');
+            updateEl.classList.add('pure-button-disabled');
+
+            if (!regexEl.value) { feedbackEl.textContent = ""; return; }
+            // catch regex errors
+            try {
+                var regex = new RegExp(regexEl.value, flagsEl.value);
+            }
+            catch (error) {
+                feedbackEl.textContent = error;
+                return;
+            }
+            feedbackEl.textContent = "";
+            for (var i = 0; i < examples.length; i++) {
+                // try to match
+                console.log("String: " + examples[i].string);
+                if (!regex.exec(examples[i].string)) {
+                    return;
+                }
+                // test captures
+                var captures = regex.exec(examples[i].string);
+                var capturesFeedback;
+                // captures[0] is the matched text. Will we need that?
+                /* feedbackEl.innerHTML = "Captured groups: " +
+                    captures.map(function(s) { return '"<b>' + s + '</b>"'}).join(", ");
+                */
+                if (examples[i].captures) {
+                    for (var m = 1; m < examples[i].captures.length; m++) {
+                        console.log("Need: " + examples[i].captures[m-1]);
+                        console.log("Got: " + captures[m]);
+                        if (!captures[m] || captures[m] != examples[i].captures[m-1]) {
+                            return;
+                        }
+                    }
+                }
+            }
+            updateEl.classList.remove('pure-button-disabled');
+            worksEl.classList.add('good');
+        }, 500);
+        
+        // listen for changes to the challenge description and 
+        // examples.
+        function challengeValue (snap) {
+            if (!snap.val()) { return; }
+            examples = snap.val().examples;
+            document.getElementById('desc').textContent = snap.val().desc;
+            testRegex();
+        }
+        
+        // when the counter changes, cache the value and refresh
+        // the challenge.
+        firebaseRef.child('counter').on('value', function (snap) {
+            challengeRef.child(currentCount).off('value', challengeValue);
+            currentCount = snap.val();
+            challengeRef.child(currentCount).on('value', challengeValue);
+        });
+        
+        // ... when the input field changes ...
+        regexEl.addEventListener('input', function(e) {
+            testRegex(e);
+        });
+        
+        // ... when the flags field changes ...
+        flagsEl.addEventListener('input', function(e) {
+            testRegex(e);
+        });
+        
+        
+        // listing submissions
+        function regexesChanged (snap) {
+            if (!snap.val()) { return; }
+            // update the row if it already exists
+            var row = document.getElementById(snap.key());
+            // otherwise deep clone the tr template
+            if (!row) {
+                row = row_template.cloneNode(true);
+                row.id = snap.key();
+                row.classList.remove('gone');
+            }
+            row.firstElementChild.textContent = snap.val().name;
+            row.lastElementChild.textContent  = snap.val().regex;
+            table.appendChild(row);
+            row.classList.add('updated');
+            setTimeout(function() { row.classList.remove('updated') }, 1000);
+        }
+        
+        function resetTable () {
+            var rows = document.querySelectorAll('table > tr:not([class="row_template"])')
+            for (var i = rows.length - 1; i >= 0; i--) {
+                table.removeChild(rows[i]);
+            }
+        }
+        
+        function next () {
+            firebaseRef.child('counter').set(++currentCount);
+        }
+        
+        function prev () {
+            firebaseRef.child('counter').set(--currentCount);
+        }
+        
+        // admin view
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.location.search.substring(1) == "admin") {
+                document.getElementById('admin').classList.remove('gone');
+                document.getElementById('controls').classList.remove('gone');
+                firebaseRef.child('counter').on('value', function (snap) {
+                    regexesRef.child(currentCount).off('child_added', regexesChanged);
+                    regexesRef.child(currentCount).off('child_changed', regexesChanged);
+                    currentCount = snap.val();
+                    regexesRef.child(currentCount).on('child_added', regexesChanged);
+                    regexesRef.child(currentCount).on('child_changed', regexesChanged);
+                    resetTable();
+                });
+            } 
+            else
+            {
+                document.getElementById('player').classList.remove('gone')
+            }
+
+        });
+        
+        
+        // from Underscore.js:
+        // Returns a function, that, as long as it continues to be invoked, will not
+        // be triggered. The function will be called after it stops being called for
+        // N milliseconds. If `immediate` is passed, trigger the function on the
+        // leading edge, instead of the trailing.
+        function debounce(func, wait, immediate) {
+            var timeout;
+            return function() {
+                var context = this, args = arguments;
+                var later = function() {
+                    timeout = null;
+                    if (!immediate) func.apply(context, args);
+                };
+                var callNow = immediate && !timeout;
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+                if (callNow) func.apply(context, args);
+            };
+        };
+        
+    </script>
+</html>
