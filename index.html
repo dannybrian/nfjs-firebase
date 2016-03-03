@@ -82,10 +82,10 @@
         <h1>The Pattern Matching Challenge</h1>
         
         <span id="controls" class="gone" style="position: absolute; top: 20px; right: 20px;">
-            <button onclick="prev()" class="pure-button" style="font-size: 140%; margin: 5px;">
+            <button id="prev" class="pure-button" style="font-size: 140%; margin: 5px;">
                 <i class="fa fa-arrow-left"></i>
             </button>
-            <button onclick="next()" class="pure-button" style="font-size: 140%; margin: 5px;">
+            <button id="next" class="pure-button" style="font-size: 140%; margin: 5px;">
                 <i class="fa fa-arrow-right"></i>
             </button>
         </span>
@@ -138,6 +138,7 @@
     </body>
     
     <script>
+        (function() {
         
         var firebaseRef = new Firebase("https://nfjs.firebaseio.com");
         var challengeRef = firebaseRef.child('challenge');
@@ -197,7 +198,15 @@
             for (var i = 0; i < examples.length; i++) {
                 // try to match
                 console.log("String: " + examples[i].string);
+                if (examples[i].invalid) { // don't match this one
+                    if (regex.exec(examples[i].string)) {
+                        console.log("invalid was matched");
+                        return;
+                    }
+                    else { continue; }
+                }
                 if (!regex.exec(examples[i].string)) {
+                    console.log("valid not matched");
                     return;
                 }
                 // test captures; if global matching, we need to iterate to make our list.
@@ -218,11 +227,8 @@
                 
                 console.log(captures);
                 
-                // var capturesFeedback;
                 // captures[0] is the matched text. Will we need that?
-                /* feedbackEl.innerHTML = "Captured groups: " +
-                    captures.map(function(s) { return '"<b>' + s + '</b>"'}).join(", ");
-                */
+                // if there are captures that need to be validated, do it.
                 if (examples[i].captures) {
                     for (var m = 1; m <= examples[i].captures.length; m++) {
                         console.log("Need: " + examples[i].captures[m-1]);
@@ -290,14 +296,14 @@
             }
         }
         
-        function next () {
+        document.getElementById('next').addEventListener('click', function() {
             firebaseRef.child('counter').set(++currentCount);
-        }
+        });
         
-        function prev () {
+        document.getElementById('prev').addEventListener('click', function() {
             firebaseRef.child('counter').set(--currentCount);
-        }
-        
+        });
+            
         // admin view
         document.addEventListener('DOMContentLoaded', function() {
             if (window.location.search.substring(1) == "admin") {
@@ -340,5 +346,6 @@
             };
         };
         
+        }());
     </script>
 </html>
