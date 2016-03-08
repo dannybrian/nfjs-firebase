@@ -138,7 +138,7 @@
     </body>
     
     <script>
-        (function() {
+        (function() { // don't pollute the global scope
         
         var firebaseRef = new Firebase("https://nfjs.firebaseio.com");
         var challengeRef = firebaseRef.child('challenge');
@@ -169,6 +169,10 @@
         // when the update button gets clicked, write the regex to
         // /regexes
         document.getElementById('update').addEventListener('click', function() {
+            // ignore if the button is disabled.
+            if (updateEl.classList.contains('pure-button-disabled')) {
+                return; // this is the only thing keeping them from submitting invalid answers!
+            }
             updateEl.classList.add('pure-button-disabled');
             var username = document.querySelector('input[name="name"]').value;
             var regex = document.querySelector('input[name="regex"]').value;
