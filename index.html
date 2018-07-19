@@ -75,6 +75,9 @@
                 background: #e0e7bd;
                 transition: none;
             }
+            tr.invalid {
+                background: #d8a7a7;
+            }
         </style>
     </head>
     
@@ -113,7 +116,7 @@
 
                         <br/><br/><br/>
 
-                        <button id="update" onclick="return false;" type="submit" class="button pure-button pure-button-disabled"><i class="fa fa-arrow-circle-up"></i>  Update</button>
+                        <button id="update" onclick="return false;" type="submit" class="button pure-button"><i class="fa fa-arrow-circle-up"></i>  Update</button>
                         <!-- <button id="reset" onclick="return false;" type="submit" class="button pure-button"><i class="fa fa-undo"></i>  Reset</button> -->
                     </span>
                     
@@ -123,11 +126,13 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Regex</th>
+                                    <th>Flags</th>
                                 </tr>
                             </thead>
                             <tr id="row_template" class="gone">
-                                <td style="width: 25%;"></td>
+                                <td style="width: 25%;" class="rname"></td>
                                 <td class="regex"></td>
+                                <td style="width: 10%;" class="rflags"></td>
                             </tr>
                         </table>
                     </span>
@@ -138,7 +143,7 @@
     </body>
     
     <script>
-        (function() { // don't pollute the global scope
+        // (function() {
         
         var firebaseRef = new Firebase("https://nfjs.firebaseio.com");
         var challengeRef = firebaseRef.child('challenge');
@@ -173,10 +178,15 @@
             if (updateEl.classList.contains('pure-button-disabled')) {
                 return; // this is the only thing keeping them from submitting invalid answers!
             }
-            updateEl.classList.add('pure-button-disabled');
+            // updateEl.classList.add('pure-button-disabled');
             var username = document.querySelector('input[name="name"]').value;
             var regex = document.querySelector('input[name="regex"]').value;
-            regexesRef.child(currentCount).child(firebaseRef.getAuth().uid).set({ name: username, regex: regex }, function() {
+            var flags = document.querySelector('input[name="flags"]').value;
+            
+            // confusing backward logic ...
+            var invalid = worksEl.classList.contains('good') ? 'false' : 'true';
+            
+            regexesRef.child(currentCount).child(firebaseRef.getAuth().uid).set({ name: username, regex: regex, flags: flags, invalid: invalid }, function() {
                 feedbackEl.textContent = "Your entry was updated.";
                 setTimeout(function() {
                     feedbackEl.textContent = "";
@@ -187,8 +197,7 @@
         // when typing pauses, test the regex ..
         var testRegex = debounce(function(e) {
             worksEl.classList.remove('good');
-            updateEl.classList.add('pure-button-disabled');
-
+            // updateEl.classList.add('pure-button-disabled');
             if (!regexEl.value) { feedbackEl.textContent = ""; return; }
             // catch regex errors
             try {
@@ -220,7 +229,6 @@
                     var matches;
                     while (matches = regex.exec(examples[i].string)) {
                         captures.push(matches[1]);
-                        console.log("HERE?");
                     }
                 }
                 else
@@ -243,7 +251,7 @@
                     }
                 }
             }
-            updateEl.classList.remove('pure-button-disabled');
+            // updateEl.classList.remove('pure-button-disabled');
             worksEl.classList.add('good');
         }, 500);
         
@@ -253,6 +261,10 @@
             if (!snap.val()) { return; }
             examples = snap.val().examples;
             document.getElementById('desc').textContent = snap.val().desc;
+            // reset input fields
+            console.log('HERE?');
+            regexEl.value = '';
+            flagsEl.value = '';
             testRegex();
         }
         
@@ -287,9 +299,17 @@
                 row.classList.remove('gone');
             }
             row.firstElementChild.textContent = snap.val().name;
-            row.lastElementChild.textContent  = snap.val().regex;
+            row.querySelector('.regex').textContent = snap.val().regex;
+            row.lastElementChild.textContent  = snap.val().flags;
             table.appendChild(row);
             row.classList.add('updated');
+            if (snap.val().invalid === 'true') {
+                row.classList.add('invalid');
+            }
+            else
+            {
+                row.classList.remove('invalid');
+            }
             setTimeout(function() { row.classList.remove('updated') }, 1000);
         }
         
@@ -350,6 +370,6 @@
             };
         };
         
-        }());
+        //}());
     </script>
 </html>
